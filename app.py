@@ -1,11 +1,15 @@
 import json, re, time, hashlib, os
 from pathlib import Path
+from dotenv import load_dotenv
 
 import numpy as np
 import pandas as pd
 import requests
 import streamlit as st
 import pydeck as pdk
+
+# Load environment variables from .env file (local development)
+load_dotenv()
 
 # ---------------- Page config ----------------
 st.set_page_config(page_title="Auction Map (CWCOT)", layout="wide")
@@ -173,6 +177,8 @@ else:
 st.sidebar.subheader("Geocoding")
 
 DEFAULT_TOKEN = st.secrets.get("MAPBOX_TOKEN") or os.getenv("MAPBOX_TOKEN", "")
+if not DEFAULT_TOKEN:
+    st.sidebar.warning("⚠️ No Mapbox token found in environment or secrets")
 mapbox_token = st.sidebar.text_input("Mapbox token", value=DEFAULT_TOKEN, type="password")
 
 # set pydeck token (for basemap). Comment the next line if you want to use OSM tiles only.
@@ -297,33 +303,72 @@ with tab_map:
 
         mid_lat, mid_lng = float(filtered["lat"].mean()), float(filtered["lng"].mean())
 
-        layer = pdk.Layer(
+        # Scatter plot for property locations
+        scatter_layer = pdk.Layer(
             "ScatterplotLayer",
             data=filtered,
             get_position=["lng", "lat"],
             get_fill_color="fill_color",
-            get_radius=marker_radius_m,           # meters
+            get_radius=marker_radius_m,
             radius_units="meters",
-            radius_min_pixels=marker_min_px,      # visible when zoomed out
-            radius_max_pixels=marker_max_px,      # cap when zoomed in
+            radius_min_pixels=marker_min_px,
+            radius_max_pixels=marker_max_px,
             pickable=True,
             auto_highlight=True,
+            # Add glow effect
+            filled=True,
+            opacity=0.8,
+            stroked=True,
+            get_line_color=[255, 255, 255],
+            get_line_width=2,
+        )
+
+        # Add a heatmap layer for density visualization
+        heatmap_layer = pdk.Layer(
+            "HeatmapLayer",
+            data=filtered,
+            get_position=["lng", "lat"],
+            get_weight="price_num",
+            radiusPixels=50,
+            opacity=0.25,
+            visible=True
         )
 
         tooltip = {
-            "html": "<b>{address_clean}</b><br/>"
-                    "<b>Price:</b> {price_fmt}<br/>"
-                    "<b>Beds/Baths:</b> {beds} / {baths}<br/>"
-                    "<b>Type:</b> {propertyType}<br/>"
-                    "<a href='{url}' target='_blank'>Open listing ↗</a> {addendum_html}",
-            "style": {"backgroundColor": "rgba(16,24,48,.95)", "color": "white"}
+            "html": "<div style='font-family: system-ui; padding: 10px;'>"
+                   "<h3 style='margin:0 0 8px'>{address_clean}</h3>"
+                   "<p style='margin:0'><b>Price:</b> {price_fmt}</p>"
+                   "<p style='margin:0'><b>Beds/Baths:</b> {beds} / {baths}</p>"
+                   "<p style='margin:0'><b>Type:</b> {propertyType}</p>"
+                   "<div style='margin-top:8px'>"
+                   "<a href='{url}' target='_blank' style='color:#4CAF50'>View listing ↗</a> "
+                   "{addendum_html}</div></div>",
+            "style": {
+                "backgroundColor": "rgba(16,24,48,.95)",
+                "color": "white",
+                "borderRadius": "4px",
+                "boxShadow": "0 2px 8px rgba(0,0,0,0.3)"
+            }
         }
 
-        view_state = pdk.ViewState(latitude=mid_lat, longitude=mid_lng, zoom=6, pitch=35)
-        deck = pdk.Deck(layers=[layer],
-                        initial_view_state=view_state,
-                        tooltip=tooltip,
-                        map_style="mapbox://styles/mapbox/light-v9" if mapbox_token else None)
+        view_state = pdk.ViewState(
+            latitude=mid_lat,
+            longitude=mid_lng,
+            zoom=6,
+            pitch=45,  # Increased pitch for better 3D effect
+            bearing=0
+        )
+
+        # Choose a more detailed map style
+        map_style = ("mapbox://styles/mapbox/dark-v10" if mapbox_token else None)
+        
+        deck = pdk.Deck(
+            layers=[heatmap_layer, scatter_layer],  # Heatmap first, then scatter points on top
+            initial_view_state=view_state,
+            tooltip=tooltip,
+            map_style=map_style,
+            effects=[{"lighting": True}]  # Enable lighting effects
+        )
         st.pydeck_chart(deck, use_container_width=True)
 
 with tab_table:
