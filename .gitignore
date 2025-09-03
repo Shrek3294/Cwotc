@@ -27,7 +27,7 @@ yarn-error.log*
 Thumbs.db
 
 # Project specific
-report.json
+
 *.summary.json
 input.json
 cookies.txt
