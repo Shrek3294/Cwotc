@@ -144,8 +144,8 @@ with st.sidebar.expander("Cache", expanded=False):
 # Marker size (so points stay visible when zoomed out)
 st.sidebar.subheader("Marker size")
 marker_radius_m = st.sidebar.slider("Base radius (meters)", 50, 3000, 800, step=50)
-marker_min_px   = st.sidebar.slider("Min pixel radius", 1, 30, 10)
-marker_max_px   = st.sidebar.slider("Max pixel radius", 10, 120, 60)
+marker_min_px   = st.sidebar.slider("Min pixel radius", 1, 10, 10)
+marker_max_px   = st.sidebar.slider("Max pixel radius", 10, 50, 10)
 
 # ---------------- Prefill coordinates from disk cache (instant, no sleep) ----------------
 # Only rows that are missing lat/lng
