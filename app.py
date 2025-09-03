@@ -1,4 +1,4 @@
-import json, re, time, hashlib
+import json, re, time, hashlib, os
 from pathlib import Path
 
 import numpy as np
@@ -100,15 +100,28 @@ GEO_CACHE = load_geo_cache()
 def geocode_network(addr: str, mapbox_token: str = ""):
     try:
         if mapbox_token:
+            # Standard (cheapest) endpoint: mapbox.places
             url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{requests.utils.quote(addr)}.json"
-            r = requests.get(url, params={"limit": 1, "access_token": mapbox_token}, timeout=10)
+            params = {
+                "limit": 1,
+                "access_token": mapbox_token,
+                "types": "address,place,postcode",
+                "country": "US",
+                # NY-ish bbox: left, bottom, right, top
+                "bbox": "-79.76,40.49,-71.85,45.01",
+                "autocomplete": "false",
+            }
+            r = requests.get(url, params=params, timeout=10)
             if r.ok and r.json().get("features"):
                 lng, lat = r.json()["features"][0]["center"]
                 return float(lat), float(lng)
         else:
-            r = requests.get("https://nominatim.openstreetmap.org/search",
-                             params={"format": "json", "limit": 1, "q": addr},
-                             headers={"User-Agent": "cwotc-streamlit"}, timeout=15)
+            r = requests.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={"format": "json", "limit": 1, "q": addr, "countrycodes": "us"},
+                headers={"User-Agent": "cwotc-streamlit"},
+                timeout=15
+            )
             if r.ok:
                 j = r.json()
                 if j:
@@ -158,7 +171,11 @@ else:
 
 # ---------------- Sidebar controls ----------------
 st.sidebar.subheader("Geocoding")
-mapbox_token = st.sidebar.text_input("Mapbox token (optional)", value="", type="password")
+
+DEFAULT_TOKEN = st.secrets.get("MAPBOX_TOKEN") or os.getenv("MAPBOX_TOKEN", "")
+mapbox_token = st.sidebar.text_input("Mapbox token", value=DEFAULT_TOKEN, type="password")
+
+# set pydeck token (for basemap). Comment the next line if you want to use OSM tiles only.
 if mapbox_token:
     pdk.settings.mapbox_api_key = mapbox_token
 
@@ -199,24 +216,36 @@ should_geocode = do_geocode or (auto_geocode and (prev_sig != sig or not geo_don
 
 # ---------------- Network geocoding (only remaining missing & only when triggered) ----------------
 if should_geocode:
-    remaining = df["lat"].isna() | df["lng"].isna()
-    todo = df[remaining].copy()
-    if len(todo):
-        st.info(f"Geocoding {len(todo)} record(s)… (cached hits were already filled)")
+    remaining_mask = df["lat"].isna() | df["lng"].isna()
+    todo = df.loc[remaining_mask, ["address_clean"]].dropna()
+    if not todo.empty:
+        # unique addresses that aren't cached yet
+        uniq = todo["address_clean"].drop_duplicates()
+        to_hit = [a for a in uniq if a not in GEO_CACHE]
+
+        st.info(f"Geocoding {len(to_hit)} unique address(es)…")
         prog = st.progress(0)
-        for i, (idx, row) in enumerate(todo.iterrows(), start=1):
-            addr = row["address_clean"]
+        addr2coords = {}
+
+        for i, addr in enumerate(to_hit, start=1):
             coords = geocode_network(addr, mapbox_token)
             if coords:
-                df.at[idx, "lat"] = coords[0]
-                df.at[idx, "lng"] = coords[1]
                 GEO_CACHE[addr] = [coords[0], coords[1]]
+                addr2coords[addr] = coords
                 save_geo_cache(GEO_CACHE)
-                # Sleep ONLY when we actually hit the network (no Mapbox token)
+                # Only sleep when we actually hit OSM (no token)
                 if not mapbox_token:
                     time.sleep(0.35)
-            prog.progress(i / len(todo))
+            prog.progress(i / max(1, len(to_hit)))
+
+        # fill from cache for all remaining rows (includes fresh + old cache)
+        fill = todo["address_clean"].map(lambda a: GEO_CACHE.get(a))
+        # expand [lat,lng] to two columns
+        latlng = fill.dropna().apply(lambda x: pd.Series({"lat": x[0], "lng": x[1]}))
+        df.loc[latlng.index, ["lat", "lng"]] = latlng.values
+
         prog.empty()
+
     st.session_state["geo_sig"] = sig
     st.session_state["geo_done"] = True
 
