@@ -25,15 +25,40 @@ def parse_float(s):
 def clean_address(raw: str) -> str:
     if not raw: return ""
     s = str(raw)
-    # Insert space before capital letters in street names
-    s = re.sub(r"([a-z])([A-Z][a-z])", r"\1 \2", s)
-    # Add space after street type abbreviations
-    s = re.sub(r"\b(Dr|St|Ave|Rd|Ct|Ln|Pl|Blvd|Pkwy|Ter|Cir|Drive|Street|Avenue|Road|Court|Lane|Place|Boulevard|Parkway|Terrace|Circle)([A-Z])", r"\1, \2", s)
+    
+    # Fix common typos
+    s = s.replace("Strret", "Street")
+    s = s.replace("Statio", "Station")
+    
+    # Handle hyphenated house numbers and units before other processing
+    s = re.sub(r'(\d+)-(\d+)\s*([A-Za-z])', r'\1-\2 \3', s)  # Fix "153-16Tuskegee"
+    
+    # Add space after numbered routes/highways
+    s = re.sub(r'(Route|Rte|Rt|Highway|Hwy|State Route|County Route|CR)\s*(\d+[A-Za-z]?)([A-Z])', r'\1 \2 \3', s)
+    
+    # Handle unit numbers
+    s = re.sub(r'(Unit|Apt|Suite|Ste|#)\s*([0-9A-Za-z-]+)([A-Z][a-z])', r'\1 \2 \3', s)
+    
+    # Handle street types (expanded list)
+    street_types = r'\b(Dr|St|Ave|Rd|Ct|Ln|Pl|Blvd|Pkwy|Ter|Cir|Way|Rte|Rt|Drive|Street|Avenue|Road|Court|Lane|Place|Boulevard|Parkway|Terrace|Circle|Route|Highway|Path)'
+    s = re.sub(f'{street_types}([A-Z])', r'\1 \2', s)
+    
+    # Add space before capital letters that start new words
+    s = re.sub(r'([a-z])([A-Z][a-z])', r'\1 \2', s)
+    
+    # Clean up any multiple spaces
+    s = re.sub(r'\s+', ' ', s)
+    
     # Split into parts by comma and clean each part
     parts = [p.strip() for p in s.split(",")]
-    # Clean up any remaining CamelCase in the first part (street address)
-    if parts: 
-        parts[0] = re.sub(r"([a-z])([A-Z][a-z])", r"\1 \2", parts[0])
+    
+    # For the street address part (first part)
+    if parts:
+        # Fix spaces around hyphens in building numbers
+        parts[0] = re.sub(r'(\d+)-(\d+)', r'\1-\2', parts[0])
+        # Ensure space after numbered streets
+        parts[0] = re.sub(r'(\d+)(st|nd|rd|th)', r'\1\2 ', parts[0], flags=re.IGNORECASE)
+    
     return ", ".join(parts).replace("  ", " ").strip()
 
 def best_address(row):
