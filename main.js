@@ -544,9 +544,9 @@ async function goToZipResults(context, location, debug){
     
     let searchUrl;
     if (isState) {
-      // State search URL format
+      // State search URL format for bank owned & newly foreclosed properties
       const stateCode = location.toLowerCase();
-      searchUrl = `https://www.auction.com/residential/${stateCode}/active_lt/auction_date_order,resi_sort_v2_st/y_nbs/foreclosures_at`;
+      searchUrl = `https://www.auction.com/residential/${stateCode}/active_lt/auction_date_order,resi_sort_v2_st/y_nbs/bank-owned,newly-foreclosed_at`;
       debug?.log('navigate_to_state_results', { state: stateCode });
     } else {
       // ZIP search URL format
@@ -590,10 +590,10 @@ async function goToZipResults(context, location, debug){
     debug?.log('verifying_results', {});
     let ok;
     if (isState) {
-      // For state searches, verify we're on a state results page
+      // For state searches, verify we're on a state results page with bank owned properties
       const currentUrl = await root.url();
       ok = currentUrl.includes(`/${location.toLowerCase()}/`) && 
-           currentUrl.includes('foreclosures_at');
+           currentUrl.includes('bank-owned,newly-foreclosed_at');
     } else {
       // For ZIP searches, verify the ZIP is on the page
       ok = await verifyZipOnPage(root, location);

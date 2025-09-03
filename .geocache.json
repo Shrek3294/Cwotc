@@ -1,0 +1,518 @@
+{
+  "23 Eric Dr Middletown, NY 10940, Orange County": [
+    41.4210415,
+    -74.4797839
+  ],
+  "18 Clark Street Deposit, NY 13754, Broome County": [
+    42.0630646,
+    -75.4255261
+  ],
+  "803 Park Drive Rome, NY 13440, Oneida County": [
+    43.2136588,
+    -75.4248196
+  ],
+  "16 Rulison St Carthage, NY 13619, Jefferson County": [
+    43.9703195,
+    -75.6186721
+  ],
+  "5514 Oakwood Dr Pendleton, NY 14120, Niagara County": [
+    43.0873005,
+    -78.7382597
+  ],
+  "797 Hemmingford Rd Mooers, NY 12958, Clinton County": [
+    44.9608505,
+    -73.5875184
+  ],
+  "172 Windsor Pkwy Hempstead, NY 11550, Nassau County": [
+    40.6924361,
+    -73.6147328
+  ],
+  "600 Medina Street Elmira, NY 14904, Chemung County": [
+    42.0689,
+    -76.8206995
+  ],
+  "1429 Vyse Ave Bronx, NY 10459, Bronx County": [
+    40.8310286,
+    -73.8897024
+  ],
+  "4390 Latting Road Shortsville, NY 14548, Ontario County": [
+    42.944665,
+    -77.245151
+  ],
+  "164 -13 109th Ave Jamaica, NY 11433, Queens County": [
+    40.6924054,
+    -73.7961914
+  ],
+  "6 Meadow Avenue Washingtonville, NY 10992, Orange County": [
+    41.4155685,
+    -74.1801406
+  ],
+  "120-45 164th Street Jamaica, NY 11434, Queens County": [
+    40.6964621,
+    -73.790097
+  ],
+  "396e 93rd St Brooklyn, NY 11212, Kings County": [
+    40.6182131,
+    -74.0317407
+  ],
+  "119-35 219th Street Cambria Heights, NY 11411, Queens County": [
+    40.6910915,
+    -73.742988
+  ],
+  "195e 40th St Brooklyn, NY 11230, Kings County": [
+    40.6440604,
+    -73.9934864
+  ],
+  "411 Madison St Brooklyn, NY 11221, Kings County": [
+    40.6858893,
+    -73.9419779
+  ],
+  "797 Snow Road Whitesville, NY 14897, Allegany County": [
+    42.034485,
+    -77.7612981
+  ],
+  "5743 Stockton Hartfield Dewittville, NY 14728, Chautauqua County": [
+    42.2847615,
+    -79.4341784
+  ],
+  "2435 Angling Road Pembroke, NY 14036, Genesee County": [
+    42.9914985,
+    -78.319491
+  ],
+  "1020 W Richmondville Road Cobleskill, NY 12043, Schoharie County": [
+    42.7045379,
+    -74.625277
+  ],
+  "18 Van Epps St Vernon, NY 13476, Vernon Town County": [
+    43.0800588,
+    -75.5442783
+  ],
+  "938 N Putnam Ave Lindenhurst, NY 11757, Suffolk County": [
+    40.7076527,
+    -73.3718755
+  ],
+  "271 Hickey Rd Hampton, NY 12837, Washington County": [
+    43.5482842,
+    -73.2852617
+  ],
+  "7692 Maple Road Baldwinsville, NY 13027, Van Buren Town County": [
+    43.1426475,
+    -76.318619
+  ],
+  "145-54 107th Ave Jamaica, NY 11435, Queens County": [
+    40.6922083,
+    -73.8033221
+  ],
+  "35 Carpenter Ave Newburgh, NY 12550, Orange County": [
+    41.5019011,
+    -74.0185607
+  ],
+  "691 Powers Rd Conklin, NY 13748, Broome County": [
+    42.0594247,
+    -75.8410878
+  ],
+  "491 Ilyssa Way Staten Island, NY 10312, Richmond County": [
+    40.5608691,
+    -74.1864192
+  ],
+  "3854 Rose Road Corning, NY 14830, Steuben County": [
+    42.1780345,
+    -77.006334
+  ],
+  "59 Pembrook Loop Staten Island, NY 10309, Richmond County": [
+    40.5368218,
+    -74.2194354
+  ],
+  "26 Amsterdam Pl Mount Vernon, NY 10553, Westchester County": [
+    40.906777,
+    -73.8262377
+  ],
+  "10 Lori St Poughkeepsie, NY 12603, Dutchess County": [
+    41.6312244,
+    -73.9018677
+  ],
+  "583 Straight Path West Babylon, NY 11704, Suffolk County": [
+    40.7179804,
+    -73.3794959
+  ],
+  "246 Skyline Drive Highland Mills, NY 10930, Orange County": [
+    41.3555657,
+    -74.1040011
+  ],
+  "1037 East 219th Street Bronx, NY 10469, Bronx County": [
+    40.8806812,
+    -73.8530851
+  ],
+  "1009 Centennial Ave North Baldwin, NY 11510, Nassau County": [
+    40.6764613,
+    -73.5930827
+  ],
+  "72 Waterstone Rd Greenwood Lake, NY 10925, Orange County": [
+    41.2234271,
+    -74.2945616
+  ],
+  "46 Bianca Court Staten Island, NY 10312, Richmond County": [
+    40.5643855,
+    -74.1841039
+  ],
+  "2206 Regina Ave Far Rockaway, NY 11691, Queens County": [
+    40.6040444,
+    -73.7569812
+  ],
+  "10 Chestnut St Auburn, NY 13021, Cayuga County": [
+    42.932255,
+    -76.5557425
+  ],
+  "502 Harbor View Ct Beacon, NY 12508, Dutchess County": [
+    41.5012639,
+    -73.9790573
+  ],
+  "2089 Pacific St Brooklyn, NY 11233, Kings County": [
+    40.6761046,
+    -73.9180183
+  ],
+  "151 Lincoln Ave Mineola, NY 11501, Nassau County": [
+    40.7463296,
+    -73.6400269
+  ],
+  "1841 Richmond Road Staten Island, NY 10306, Richmond County": [
+    40.5856601,
+    -74.1059474
+  ],
+  "1093 East 72nd Street Brooklyn, NY 11234, Kings County": [
+    40.6277195,
+    -73.9169926
+  ],
+  "33 Marc Street Staten Island, NY 10314, Richmond County": [
+    40.6197923,
+    -74.152321
+  ],
+  "1355 E 57th St Brooklyn, NY 11234, Kings County": [
+    40.619332,
+    -73.9782078
+  ],
+  "11 Berry Hill Ln Bethpage, NY 11714, Nassau County": [
+    40.723395,
+    -73.4838523
+  ],
+  "173 -61 105th Avenue Queens, NY 11433, Queens County": [
+    40.7034742,
+    -73.7819198
+  ],
+  "89 Sherman Ave Bethpage, NY 11714, Nassau County": [
+    40.7476268,
+    -73.4898447
+  ],
+  "34 Karen St West Babylon, NY 11704, Suffolk County": [
+    40.7076748,
+    -73.3624585
+  ],
+  "15 Glenwood Ln Huntington, NY 11743, Suffolk County": [
+    40.84003,
+    -73.370613
+  ],
+  "1181 Ocean Avenue Bay Shore, NY 11706, Suffolk County": [
+    40.7512548,
+    -73.2930367
+  ],
+  "183 12 Elmira Avenue Saint Albans, NY 11412, Queens County": [
+    40.7013776,
+    -73.7721877
+  ],
+  "15 Stratford Ave Williston Park, NY 11596, Nassau County": [
+    40.7581445,
+    -73.6403565
+  ],
+  "625 Lenox Road Brooklyn, NY 11203, Kings County": [
+    40.6551396,
+    -73.9371034
+  ],
+  "107 39 156th St Jamaica, NY 11433, Queens County": [
+    40.6950834,
+    -73.7965612
+  ],
+  "223 15 114th Rd Cambria Heights, NY 11411, Queens County": [
+    40.701197,
+    -73.7337055
+  ],
+  "42 Hackett St Selkirk, NY 12158, Albany County": [
+    42.5324146,
+    -73.8030569
+  ],
+  "5 Knight Street Silver Creek, NY 14136, Chautauqua County": [
+    42.537045,
+    -79.1640019
+  ],
+  "36 Hale Ave Brooklyn, NY 11208, Kings County": [
+    40.6843646,
+    -73.8811945
+  ],
+  "57 Lafayette Street Huntington, NY 11743, Suffolk County": [
+    40.8436539,
+    -73.3691756
+  ],
+  "22 Grove Street Staten Island, NY 10304, Richmond County": [
+    40.6269486,
+    -74.0816801
+  ],
+  "1316 33rd Avenue Astoria, NY 11106, Queens County": [
+    40.7665038,
+    -73.9356265
+  ],
+  "11 Parkwood Road Westbury, NY 11590, Nassau County": [
+    40.7718775,
+    -73.5645638
+  ],
+  "8148 South Hill Rd Cattaraugus, NY 14719, Cattaraugus County": [
+    42.352221,
+    -78.830953
+  ],
+  "99 -23 215th St Queens Village, NY 11429, Queens County": [
+    40.7206223,
+    -73.7434519
+  ],
+  "1191e 96th Street Brooklyn, NY 11236, Kings County": [
+    40.6159239,
+    -74.0327125
+  ],
+  "242-31 131st Avenue Queens, NY 11422, Queens County": [
+    40.6770595,
+    -73.7285115
+  ],
+  "26 Berkshire Trail Bethel, NY 12778, Sullivan County": [
+    41.6660835,
+    -74.8118665
+  ],
+  "43 Westside Ave Freeport, NY 11520, Nassau County": [
+    40.6435782,
+    -73.5903973
+  ],
+  "706 Tallman St Syracuse, NY 13204, Onondaga County": [
+    43.036315,
+    -76.1595141
+  ],
+  "78-31 67th Dr Middle Village, NY 11379, Queens County": [
+    40.7119659,
+    -73.8741879
+  ],
+  "63 Washington Ave Mastic Beach, NY 11951, Suffolk County": [
+    40.7761668,
+    -72.8351636
+  ],
+  "114-42 204th Street Saint Albans, NY 11412, Queens County": [
+    40.6997424,
+    -73.7508625
+  ],
+  "13 Wood Street Auburn, NY 13021, Cayuga County": [
+    42.9232145,
+    -76.580514
+  ],
+  "188 Blackman Corners Rd Mooers Forks, NY 12959, Clinton County": [
+    44.9673835,
+    -73.6508173
+  ],
+  "339 Barton Ave East Patchogue, NY 11772, Suffolk County": [
+    40.7883839,
+    -72.99062
+  ],
+  "8 Athens St Waverly, NY 14892, Tioga County": [
+    42.004327,
+    -76.5393995
+  ],
+  "515 W Lake Ave Herkimer, NY 13350, Herkimer County": [
+    43.035614,
+    -74.9883505
+  ],
+  "1494 Middle Rd Ogdensburg, NY 13669, Saint Lawrence County": [
+    44.6157305,
+    -75.5220049
+  ],
+  "127 Main St Candor, NY 13743, Tioga County": [
+    42.2314715,
+    -76.3413845
+  ],
+  "29 Foote St Mineville, NY 12956, Essex County": [
+    44.086838,
+    -73.5212497
+  ],
+  "20931 Oxford St Carthage, NY 13619, Jefferson County": [
+    43.969709,
+    -75.5881085
+  ],
+  "6 Clunis St Hadley, NY 12835, Saratoga County": [
+    43.3169855,
+    -73.8508753
+  ],
+  "110 Cedar Rd Inwood, NY 11096, Nassau County": [
+    40.6184841,
+    -73.7525036
+  ],
+  "63 Schenectady Avenue West Babylon, NY 11704, Suffolk County": [
+    40.7376557,
+    -73.3610587
+  ],
+  "2642 Liberty St Whitney Point, NY 13862, Broome County": [
+    42.3277132,
+    -75.967304
+  ],
+  "348 Beckwith Rd Pine City, NY 14871, Chemung County": [
+    42.0624588,
+    -76.8702418
+  ],
+  "9727 Elpis Road Vienna, NY 13316, Oneida County": [
+    43.2771017,
+    -75.7388699
+  ],
+  "831 Jennings Street Bronx, NY 10459, Bronx County": [
+    40.832367,
+    -73.8944144
+  ],
+  "7880 Steuben St Holland Patent, NY 13354, Oneida County": [
+    43.2435104,
+    -75.256135
+  ],
+  "52 Howards Way Argyle, NY 12809, Washington County": [
+    43.2960391,
+    -73.4384528
+  ],
+  "116 Morgan Acres Rd Norwich, NY 13815, Norwich County": [
+    42.5694192,
+    -75.530427
+  ],
+  "14 Grace Street Buffalo, NY 14207, Erie County": [
+    42.9422752,
+    -78.9055451
+  ],
+  "1723 Taylor Ave Bronx, NY 10460, Bronx County": [
+    40.8424379,
+    -73.8694269
+  ],
+  "158 Hett Ave Staten Island, NY 10306, Richmond County": [
+    40.5621386,
+    -74.1040395
+  ],
+  "9280 Warner Gulf Rd Holland, NY 14080, Erie County": [
+    42.6279885,
+    -78.5517141
+  ],
+  "325 1st St Newburgh, NY 12550, Orange County": [
+    41.5017704,
+    -74.0053875
+  ],
+  "13 Green Ave Castleton, NY 12033, Rensselaer County": [
+    42.529,
+    -73.7549091
+  ],
+  "192 Titusville Road Poughkeepsie, NY 12603, Dutchess County": [
+    41.6628147,
+    -73.8677898
+  ],
+  "584 Dutch Hill Rd Pine City, NY 14871, Chemung County": [
+    42.0561475,
+    -76.9653735
+  ],
+  "28 Pine St Granville, NY 12832, Washington County": [
+    43.4134955,
+    -73.2605475
+  ],
+  "29 Washington Street Auburn, NY 13021, Cayuga County": [
+    42.9298865,
+    -76.5760589
+  ],
+  "253 George Rd Mexico, NY 13114, Oswego County": [
+    43.48779,
+    -76.266018
+  ],
+  "5 Orchard St Oneonta, NY 13820, Otsego County": [
+    42.4531303,
+    -75.0913039
+  ],
+  "183-22 140th Ave Springfield Gardens, NY 11413, Queens County": [
+    40.6720275,
+    -73.7549424
+  ],
+  "917 Patterson Street Ogdensburg, NY 13669, St. Lawrence County": [
+    44.6939257,
+    -75.4793276
+  ],
+  "3655 Essex Rd Willsboro, NY 12996, Essex County": [
+    44.3568755,
+    -73.3885469
+  ],
+  "56 Fair St Norwich, NY 13815, Chenango County": [
+    42.5323834,
+    -75.5295759
+  ],
+  "5082 Upper Mountain Rd Lockport, NY 14094, Niagara County": [
+    43.168607,
+    -78.7636994
+  ],
+  "3015 Birch Avenue Niagara Falls, NY 14305, Niagara County": [
+    43.115695,
+    -79.0309265
+  ],
+  "1900 Carleton Place Baldwin, NY 11510, Nassau County": [
+    40.6638568,
+    -73.6138698
+  ],
+  "335 Babylon St Islip Terrace, NY 11752, Suffolk County": [
+    40.7727316,
+    -73.1724791
+  ],
+  "239 Ocean Avenue Brentwood, NY 11717, Suffolk County": [
+    40.7885053,
+    -73.2306149
+  ],
+  "28 Main St Lockwood, NY 14859, Tioga County": [
+    42.0917035,
+    -76.5479127
+  ],
+  "90 Emmons Street Dannemora, NY 12929, Clinton County": [
+    44.7169505,
+    -73.723059
+  ],
+  "400 East 49th Street Brooklyn, NY 11203, Kings County": [
+    40.6521894,
+    -73.9316641
+  ],
+  "104 E Pennywood Ave Roosevelt, NY 11575, Nassau County": [
+    40.6852857,
+    -73.5941965
+  ],
+  "863 Prospect Ave Westbury, NY 11590, Nassau County": [
+    40.7624563,
+    -73.5675209
+  ],
+  "235 Parkside Drive Suffern, NY 10901, Rockland County": [
+    41.102119,
+    -74.1351434
+  ],
+  "82 Ethel St Valley Stream, NY 11580, Nassau County": [
+    40.6730848,
+    -73.7124512
+  ],
+  "377 Main Street Phoenix, NY 13135, Oswego County": [
+    43.2249255,
+    -76.294628
+  ],
+  "423 Bedford Road Schenectady, NY 12308, Schenectady County": [
+    42.8060907,
+    -73.9223655
+  ],
+  "11 Bath Township Rd East Nassau, NY 12062, Rensselaer County": [
+    42.5165994,
+    -73.5159854
+  ],
+  "35 Pleasant St Norwich, NY 13815, Chenango County": [
+    42.5363209,
+    -75.5278424
+  ],
+  "8679 Aitken Ave Whitestown, NY 13492, Oneida County": [
+    43.0994656,
+    -75.3122816
+  ],
+  "268 Bunn Hill Rd Vestal, NY 13850, Broome County": [
+    42.0498173,
+    -76.0071839
+  ]
+}
