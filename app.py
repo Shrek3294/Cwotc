@@ -25,10 +25,16 @@ def parse_float(s):
 def clean_address(raw: str) -> str:
     if not raw: return ""
     s = str(raw)
-    s = re.sub(r"\b(Dr|St|Ave|Rd|Ct|Ln|Pl|Blvd|Pkwy|Ter|Cir|Drive|Street|Avenue|Road|Court|Lane|Place|Boulevard|Parkway|Terrace|Circle)(?=[A-Z])", r"\1 ", s)
-    parts = s.split(",")
-    if parts: parts[0] = re.sub(r"([a-z])([A-Z])", r"\1 \2", parts[0])
-    return ",".join(parts).replace("  ", " ").strip()
+    # Insert space before capital letters in street names
+    s = re.sub(r"([a-z])([A-Z][a-z])", r"\1 \2", s)
+    # Add space after street type abbreviations
+    s = re.sub(r"\b(Dr|St|Ave|Rd|Ct|Ln|Pl|Blvd|Pkwy|Ter|Cir|Drive|Street|Avenue|Road|Court|Lane|Place|Boulevard|Parkway|Terrace|Circle)([A-Z])", r"\1, \2", s)
+    # Split into parts by comma and clean each part
+    parts = [p.strip() for p in s.split(",")]
+    # Clean up any remaining CamelCase in the first part (street address)
+    if parts: 
+        parts[0] = re.sub(r"([a-z])([A-Z][a-z])", r"\1 \2", parts[0])
+    return ", ".join(parts).replace("  ", " ").strip()
 
 def best_address(row):
     for k in ["address", "cityStateZip"]:
@@ -287,6 +293,17 @@ with tab_table:
 
 with tab_stats:
     st.metric("Total records", len(df))
+    st.metric("Total CWCOT", int(df["isCWCOT"].sum()))
     st.metric("Mappable records", len(mapped))
-    st.metric("CWCOT count", int(mapped["isCWCOT"].sum()))
+    st.metric("Mappable CWCOT", int(mapped["isCWCOT"].sum()))
     st.metric("With addendum", int(mapped["has_addendum"].sum()))
+    
+    # Show unmapped addresses
+    unmapped = df[df["lat"].isna() | df["lng"].isna()]
+    if not unmapped.empty:
+        st.subheader("Unmapped Addresses")
+        st.caption(f"{len(unmapped)} addresses could not be geocoded:")
+        for _, row in unmapped.iterrows():
+            raw = row["address"]
+            cleaned = clean_address(raw)
+            st.text(f"Raw: {raw}\nCleaned: {cleaned}\n")
