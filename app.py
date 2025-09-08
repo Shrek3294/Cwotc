@@ -324,12 +324,29 @@ with tab_map:
             bearing=0
         )
 
+        # Render Mapbox basemap via raster TileLayer so the browser fetches tiles
+        def _style_to_tiles(style_url: str) -> str:
+            if style_url.startswith("mapbox://styles/"):
+                style_id = style_url.replace("mapbox://styles/", "")
+                return f"https://api.mapbox.com/styles/v1/{style_id}/tiles/256/{{z}}/{{x}}/{{y}}@2x?access_token={MAPBOX_TOKEN}"
+            return ""
+
+        basemap_tiles = _style_to_tiles(map_style)
+        basemap_layer = pdk.Layer(
+            "TileLayer",
+            data=basemap_tiles,
+            minZoom=0,
+            maxZoom=22,
+            tileSize=256,
+            opacity=1.0,
+            attribution="© Mapbox © OpenStreetMap",
+        )
+
         deck = pdk.Deck(
-            layers=[heatmap_layer, scatter_layer],
+            layers=[basemap_layer, heatmap_layer, scatter_layer],
             initial_view_state=view_state,
             tooltip=tooltip,
-            map_style=map_style,
-            mapbox_key=MAPBOX_TOKEN,
+            map_style=None,
         )
         st.pydeck_chart(deck, use_container_width=True)
 
