@@ -329,6 +329,7 @@ with tab_map:
             initial_view_state=view_state,
             tooltip=tooltip,
             map_style=map_style,
+            mapbox_key=MAPBOX_TOKEN,
         )
         st.pydeck_chart(deck, use_container_width=True)
 
