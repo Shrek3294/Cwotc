@@ -3,7 +3,6 @@ from pathlib import Path
 try:
     from dotenv import load_dotenv
 except Exception:
-    # Fallback when python-dotenv isn't installed
     def load_dotenv(*args, **kwargs):
         return None
 
@@ -18,7 +17,7 @@ load_dotenv()
 
 # ---------------- Page config ----------------
 st.set_page_config(page_title="Auction Map (CWCOT)", layout="wide")
-st.title("🏠 Auction.com Property Explorer")
+st.title("Auction.com Property Explorer")
 
 # ---------------- Helpers ----------------
 def parse_money(s):
@@ -34,40 +33,18 @@ def parse_float(s):
 def clean_address(raw: str) -> str:
     if not raw: return ""
     s = str(raw)
-    
-    # Fix common typos
-    s = s.replace("Strret", "Street")
-    s = s.replace("Statio", "Station")
-    
-    # Handle hyphenated house numbers and units before other processing
-    s = re.sub(r'(\d+)-(\d+)\s*([A-Za-z])', r'\1-\2 \3', s)  # Fix "153-16Tuskegee"
-    
-    # Add space after numbered routes/highways
+    s = s.replace("Strret", "Street").replace("Statio", "Station")
+    s = re.sub(r'(\d+)-(\d+)\s*([A-Za-z])', r'\1-\2 \3', s)
     s = re.sub(r'(Route|Rte|Rt|Highway|Hwy|State Route|County Route|CR)\s*(\d+[A-Za-z]?)([A-Z])', r'\1 \2 \3', s)
-    
-    # Handle unit numbers
     s = re.sub(r'(Unit|Apt|Suite|Ste|#)\s*([0-9A-Za-z-]+)([A-Z][a-z])', r'\1 \2 \3', s)
-    
-    # Handle street types (expanded list)
     street_types = r'\b(Dr|St|Ave|Rd|Ct|Ln|Pl|Blvd|Pkwy|Ter|Cir|Way|Rte|Rt|Drive|Street|Avenue|Road|Court|Lane|Place|Boulevard|Parkway|Terrace|Circle|Route|Highway|Path)'
     s = re.sub(f'{street_types}([A-Z])', r'\1 \2', s)
-    
-    # Add space before capital letters that start new words
     s = re.sub(r'([a-z])([A-Z][a-z])', r'\1 \2', s)
-    
-    # Clean up any multiple spaces
     s = re.sub(r'\s+', ' ', s)
-    
-    # Split into parts by comma and clean each part
     parts = [p.strip() for p in s.split(",")]
-    
-    # For the street address part (first part)
     if parts:
-        # Fix spaces around hyphens in building numbers
         parts[0] = re.sub(r'(\d+)-(\d+)', r'\1-\2', parts[0])
-        # Ensure space after numbered streets
         parts[0] = re.sub(r'(\d+)(st|nd|rd|th)', r'\1\2 ', parts[0], flags=re.IGNORECASE)
-    
     return ", ".join(parts).replace("  ", " ").strip()
 
 def best_address(row):
@@ -106,35 +83,22 @@ def save_geo_cache(cache: dict):
 
 GEO_CACHE = load_geo_cache()
 
-def geocode_network(addr: str, mapbox_token: str = ""):
+def geocode_network(addr: str, mapbox_token: str):
     try:
-        if mapbox_token:
-            # Standard (cheapest) endpoint: mapbox.places
-            url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{requests.utils.quote(addr)}.json"
-            params = {
-                "limit": 1,
-                "access_token": mapbox_token,
-                "types": "address,place,postcode",
-                "country": "US",
-                # NY-ish bbox: left, bottom, right, top
-                "bbox": "-79.76,40.49,-71.85,45.01",
-                "autocomplete": "false",
-            }
-            r = requests.get(url, params=params, timeout=10)
-            if r.ok and r.json().get("features"):
-                lng, lat = r.json()["features"][0]["center"]
-                return float(lat), float(lng)
-        else:
-            r = requests.get(
-                "https://nominatim.openstreetmap.org/search",
-                params={"format": "json", "limit": 1, "q": addr, "countrycodes": "us"},
-                headers={"User-Agent": "cwotc-streamlit"},
-                timeout=15
-            )
-            if r.ok:
-                j = r.json()
-                if j:
-                    return float(j[0]["lat"]), float(j[0]["lon"])
+        # Mapbox geocoding (mapbox.places)
+        url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{requests.utils.quote(addr)}.json"
+        params = {
+            "limit": 1,
+            "access_token": mapbox_token,
+            "types": "address,place,postcode",
+            "country": "US",
+            "bbox": "-79.76,40.49,-71.85,45.01",
+            "autocomplete": "false",
+        }
+        r = requests.get(url, params=params, timeout=10)
+        if r.ok and r.json().get("features"):
+            lng, lat = r.json()["features"][0]["center"]
+            return float(lat), float(lng)
     except Exception:
         pass
     return None
@@ -181,33 +145,23 @@ else:
 # ---------------- Sidebar controls ----------------
 st.sidebar.subheader("Geocoding")
 
-DEFAULT_TOKEN = st.secrets.get("MAPBOX_TOKEN") or os.getenv("MAPBOX_TOKEN", "")
-if not DEFAULT_TOKEN:
-    st.sidebar.warning("⚠️ No Mapbox token found in environment or secrets")
-mapbox_token = st.sidebar.text_input("Mapbox token", value=DEFAULT_TOKEN, type="password")
+# Mapbox-only: token must be provided via Streamlit secrets
+MAPBOX_TOKEN = st.secrets.get("MAPBOX_TOKEN", "")
+if not MAPBOX_TOKEN:
+    st.error("Missing MAPBOX_TOKEN in Streamlit secrets. Add it in Streamlit Cloud.")
+    st.stop()
+pdk.settings.mapbox_api_key = MAPBOX_TOKEN
 
-# set pydeck token (for basemap). Comment the next line if you want to use OSM tiles only.
-if mapbox_token:
-    pdk.settings.mapbox_api_key = mapbox_token
-
-# Basemap selection and provider status
 st.sidebar.subheader("Basemap")
-style_options = {
-    "Mapbox Dark": "mapbox://styles/mapbox/dark-v11",
-    "Mapbox Light": "mapbox://styles/mapbox/light-v11",
-    "Mapbox Streets": "mapbox://styles/mapbox/streets-v12",
-    "Mapbox Satellite": "mapbox://styles/mapbox/satellite-streets-v12",
-    "OSM (raster)": "OSM",
+mapbox_styles = {
+    "Dark": "mapbox://styles/mapbox/dark-v11",
+    "Light": "mapbox://styles/mapbox/light-v11",
+    "Streets": "mapbox://styles/mapbox/streets-v12",
+    "Satellite": "mapbox://styles/mapbox/satellite-streets-v12",
 }
-default_style_key = "Mapbox Dark" if mapbox_token else "OSM (raster)"
-style_keys = list(style_options.keys())
-selected_style_key = st.sidebar.selectbox("Basemap style", options=style_keys, index=style_keys.index(default_style_key))
-selected_style_val = style_options[selected_style_key]
-
-if mapbox_token and selected_style_val != "OSM":
-    st.sidebar.caption(f"Map provider: Mapbox • style: {selected_style_key} • token …{mapbox_token[-6:]}")
-else:
-    st.sidebar.caption("Map provider: OpenStreetMap raster tiles")
+style_name = st.sidebar.selectbox("Basemap style", options=list(mapbox_styles.keys()), index=0)
+map_style = mapbox_styles[style_name]
+st.sidebar.caption(f"Map provider: Mapbox • style: {style_name} • token …{MAPBOX_TOKEN[-6:]}")
 
 auto_geocode = st.sidebar.checkbox("Auto geocode on load (only when file changes)", value=False)
 do_geocode = st.sidebar.button("Geocode missing now")
@@ -219,21 +173,19 @@ with st.sidebar.expander("Cache", expanded=False):
         save_geo_cache(GEO_CACHE)
         st.success("Cleared geocode cache."); st.rerun()
 
-# Marker size (so points stay visible when zoomed out)
+# Marker size
 st.sidebar.subheader("Marker size")
 marker_radius_m = st.sidebar.slider("Base radius (meters)", 50, 3000, 800, step=50)
 marker_min_px   = st.sidebar.slider("Min pixel radius", 1, 10, 10)
 marker_max_px   = st.sidebar.slider("Max pixel radius", 10, 50, 10)
 
-# ---------------- Prefill coordinates from disk cache (instant, no sleep) ----------------
-# Only rows that are missing lat/lng
+# ---------------- Prefill coordinates from disk cache ----------------
 need = df["lat"].isna() | df["lng"].isna()
 if need.any():
     addrs = df.loc[need, "address_clean"]
     hits_idx = addrs[addrs.isin(GEO_CACHE.keys())].index
     if len(hits_idx):
         coords = [GEO_CACHE[a] for a in df.loc[hits_idx, "address_clean"]]
-        # coords are [lat, lng]
         latlng = pd.DataFrame(coords, index=hits_idx, columns=["lat", "lng"])
         df.loc[hits_idx, ["lat", "lng"]] = latlng
 
@@ -241,39 +193,31 @@ if need.any():
 sig = f"{sha1}:{int(mtime)}"
 prev_sig = st.session_state.get("geo_sig")
 geo_done = st.session_state.get("geo_done", False)
-
 should_geocode = do_geocode or (auto_geocode and (prev_sig != sig or not geo_done))
 
-# ---------------- Network geocoding (only remaining missing & only when triggered) ----------------
+# ---------------- Network geocoding ----------------
 if should_geocode:
     remaining_mask = df["lat"].isna() | df["lng"].isna()
     todo = df.loc[remaining_mask, ["address_clean"]].dropna()
     if not todo.empty:
-        # unique addresses that aren't cached yet
         uniq = todo["address_clean"].drop_duplicates()
         to_hit = [a for a in uniq if a not in GEO_CACHE]
 
-        st.info(f"Geocoding {len(to_hit)} unique address(es)…")
+        st.info(f"Geocoding {len(to_hit)} unique address(es)...")
         prog = st.progress(0)
-        addr2coords = {}
 
         for i, addr in enumerate(to_hit, start=1):
-            coords = geocode_network(addr, mapbox_token)
+            coords = geocode_network(addr, MAPBOX_TOKEN)
             if coords:
                 GEO_CACHE[addr] = [coords[0], coords[1]]
-                addr2coords[addr] = coords
                 save_geo_cache(GEO_CACHE)
-                # Only sleep when we actually hit OSM (no token)
-                if not mapbox_token:
-                    time.sleep(0.35)
+            time.sleep(0.1)
             prog.progress(i / max(1, len(to_hit)))
 
-        # fill from cache for all remaining rows (includes fresh + old cache)
         fill = todo["address_clean"].map(lambda a: GEO_CACHE.get(a))
-        # expand [lat,lng] to two columns
         latlng = fill.dropna().apply(lambda x: pd.Series({"lat": x[0], "lng": x[1]}))
-        df.loc[latlng.index, ["lat", "lng"]] = latlng.values
-
+        if not latlng.empty:
+            df.loc[latlng.index, ["lat", "lng"]] = latlng.values
         prog.empty()
 
     st.session_state["geo_sig"] = sig
@@ -308,7 +252,7 @@ if search:
 st.caption(f"Showing **{len(filtered)}** of {len(mapped)} mappable records (total {len(df)}).")
 
 # ---------------- Tabs ----------------
-tab_map, tab_table, tab_stats = st.tabs(["🗺️ Map", "📄 Table", "ℹ️ Stats"])
+tab_map, tab_table, tab_stats = st.tabs(["Map", "Table", "Stats"])
 
 with tab_map:
     if filtered.empty:
@@ -327,7 +271,6 @@ with tab_map:
 
         mid_lat, mid_lng = float(filtered["lat"].mean()), float(filtered["lng"].mean())
 
-        # Scatter plot for property locations
         scatter_layer = pdk.Layer(
             "ScatterplotLayer",
             data=filtered,
@@ -339,15 +282,13 @@ with tab_map:
             radius_max_pixels=marker_max_px,
             pickable=True,
             auto_highlight=True,
-            # Add glow effect
             filled=True,
-            opacity=0.8,
+            opacity=0.85,
             stroked=True,
             get_line_color=[255, 255, 255],
             get_line_width=2,
         )
 
-        # Add a heatmap layer for density visualization
         heatmap_layer = pdk.Layer(
             "HeatmapLayer",
             data=filtered,
@@ -365,7 +306,7 @@ with tab_map:
                    "<p style='margin:0'><b>Beds/Baths:</b> {beds} / {baths}</p>"
                    "<p style='margin:0'><b>Type:</b> {propertyType}</p>"
                    "<div style='margin-top:8px'>"
-                   "<a href='{url}' target='_blank' style='color:#4CAF50'>View listing ↗</a> "
+                   "<a href='{url}' target='_blank' style='color:#4CAF50'>View listing</a> "
                    "{addendum_html}</div></div>",
             "style": {
                 "backgroundColor": "rgba(16,24,48,.95)",
@@ -379,31 +320,12 @@ with tab_map:
             latitude=mid_lat,
             longitude=mid_lng,
             zoom=6,
-            pitch=45,  # Increased pitch for better 3D effect
+            pitch=45,
             bearing=0
         )
 
-        # Basemap: Mapbox style if token present and selected; else OSM raster TileLayer
-        layers = []
-        if (not mapbox_token) or selected_style_val == "OSM":
-            tile_layer = pdk.Layer(
-                "TileLayer",
-                data="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                minZoom=0,
-                maxZoom=19,
-                tileSize=256,
-                opacity=1.0,
-                attribution="© OpenStreetMap contributors",
-            )
-            layers.append(tile_layer)
-
-        # Data layers on top
-        layers.extend([heatmap_layer, scatter_layer])
-
-        map_style = None if (not mapbox_token or selected_style_val == "OSM") else selected_style_val
-
         deck = pdk.Deck(
-            layers=layers,
+            layers=[heatmap_layer, scatter_layer],
             initial_view_state=view_state,
             tooltip=tooltip,
             map_style=map_style,
@@ -435,8 +357,7 @@ with tab_stats:
     st.metric("Mappable records", len(mapped))
     st.metric("Mappable CWCOT", int(mapped["isCWCOT"].sum()))
     st.metric("With addendum", int(mapped["has_addendum"].sum()))
-    
-    # Show unmapped addresses
+
     unmapped = df[df["lat"].isna() | df["lng"].isna()]
     if not unmapped.empty:
         st.subheader("Unmapped Addresses")
@@ -445,3 +366,4 @@ with tab_stats:
             raw = row["address"]
             cleaned = clean_address(raw)
             st.text(f"Raw: {raw}\nCleaned: {cleaned}\n")
+
