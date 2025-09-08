@@ -190,6 +190,25 @@ mapbox_token = st.sidebar.text_input("Mapbox token", value=DEFAULT_TOKEN, type="
 if mapbox_token:
     pdk.settings.mapbox_api_key = mapbox_token
 
+# Basemap selection and provider status
+st.sidebar.subheader("Basemap")
+style_options = {
+    "Mapbox Dark": "mapbox://styles/mapbox/dark-v11",
+    "Mapbox Light": "mapbox://styles/mapbox/light-v11",
+    "Mapbox Streets": "mapbox://styles/mapbox/streets-v12",
+    "Mapbox Satellite": "mapbox://styles/mapbox/satellite-streets-v12",
+    "OSM (raster)": "OSM",
+}
+default_style_key = "Mapbox Dark" if mapbox_token else "OSM (raster)"
+style_keys = list(style_options.keys())
+selected_style_key = st.sidebar.selectbox("Basemap style", options=style_keys, index=style_keys.index(default_style_key))
+selected_style_val = style_options[selected_style_key]
+
+if mapbox_token and selected_style_val != "OSM":
+    st.sidebar.caption(f"Map provider: Mapbox • style: {selected_style_key} • token …{mapbox_token[-6:]}")
+else:
+    st.sidebar.caption("Map provider: OpenStreetMap raster tiles")
+
 auto_geocode = st.sidebar.checkbox("Auto geocode on load (only when file changes)", value=False)
 do_geocode = st.sidebar.button("Geocode missing now")
 
@@ -364,15 +383,30 @@ with tab_map:
             bearing=0
         )
 
-        # Choose a more detailed map style
-        map_style = ("mapbox://styles/mapbox/dark-v10" if mapbox_token else None)
-        
+        # Basemap: Mapbox style if token present and selected; else OSM raster TileLayer
+        layers = []
+        if (not mapbox_token) or selected_style_val == "OSM":
+            tile_layer = pdk.Layer(
+                "TileLayer",
+                data="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                minZoom=0,
+                maxZoom=19,
+                tileSize=256,
+                opacity=1.0,
+                attribution="© OpenStreetMap contributors",
+            )
+            layers.append(tile_layer)
+
+        # Data layers on top
+        layers.extend([heatmap_layer, scatter_layer])
+
+        map_style = None if (not mapbox_token or selected_style_val == "OSM") else selected_style_val
+
         deck = pdk.Deck(
-            layers=[heatmap_layer, scatter_layer],  # Heatmap first, then scatter points on top
+            layers=layers,
             initial_view_state=view_state,
             tooltip=tooltip,
             map_style=map_style,
-            effects=[{"lighting": True}]  # Enable lighting effects
         )
         st.pydeck_chart(deck, use_container_width=True)
 
