@@ -306,13 +306,15 @@ with tab_map:
                    "<p style='margin:0'><b>Beds/Baths:</b> {beds} / {baths}</p>"
                    "<p style='margin:0'><b>Type:</b> {propertyType}</p>"
                    "<div style='margin-top:8px'>"
-                   "<a href='{url}' target='_blank' style='color:#4CAF50'>View listing</a> "
+                   "<a href='{url}' target='_blank' onclick='event.stopPropagation();' onmousedown='event.stopPropagation();' onmouseup='event.stopPropagation();' style='color:#4CAF50; text-decoration:underline; cursor:pointer'>Open listing</a> "
                    "{addendum_html}</div></div>",
             "style": {
                 "backgroundColor": "rgba(16,24,48,.95)",
                 "color": "white",
                 "borderRadius": "4px",
-                "boxShadow": "0 2px 8px rgba(0,0,0,0.3)"
+                "boxShadow": "0 2px 8px rgba(0,0,0,0.3)",
+                "pointerEvents": "auto",
+                "zIndex": 1000
             }
         }
 
