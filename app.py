@@ -1,6 +1,11 @@
 import json, re, time, hashlib, os
 from pathlib import Path
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except Exception:
+    # Fallback when python-dotenv isn't installed
+    def load_dotenv(*args, **kwargs):
+        return None
 
 import numpy as np
 import pandas as pd
