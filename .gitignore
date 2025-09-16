@@ -31,6 +31,8 @@ Thumbs.db
 *.summary.json
 input.json
 cookies.txt
+data/
+dist/
 
 # Temporary files
 *.log
