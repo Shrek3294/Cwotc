@@ -63,9 +63,6 @@ async function loadConfig() {
     cookieHeader: cfg.cookieHeader || '',
     zip: cfg.zip ? String(cfg.zip) : '',
     state: cfg.state ? String(cfg.state).toUpperCase() : '',
-    countrywide: !!cfg.countrywide,
-    countryUrl: cfg.countryUrl || 'https://www.auction.com/residential/active_lt/auction_date_order,resi_sort_v2_st/y_global/y_nbs/bank-owned,newly-foreclosed_at',
-    countryStates: Array.isArray(cfg.countryStates) ? cfg.countryStates.map(s => String(s).toUpperCase()).filter(s => STATE_CODES[s]) : null,
     detailUrls: Array.isArray(cfg.detailUrls) ? cfg.detailUrls.filter(Boolean) : (cfg.detailUrls ? [cfg.detailUrls] : []),
     maxProperties: Number(cfg.maxProperties ?? ((Array.isArray(cfg.detailUrls) ? cfg.detailUrls.length : 1) || 1)),
     debug: !!cfg.debug,
@@ -103,7 +100,7 @@ async function waitSettle(page, debug){
 async function dismiss(page){
   await safe(()=>page.evaluate(()=>{
     // Avoid clicking generic "OK" links that could navigate (e.g., to state pages)
-    const R=/accept|agree|got it|close|continue|understand/i; // removed 'ok'
+    const R=/accept|agree|got it|close|understand/i; // avoid 'continue' to prevent unintended navigation
     const els=[...document.querySelectorAll('button,[role="button"]')]; // avoid anchors
     const b=els.find(e=>R.test((e.innerText||e.textContent||'').trim()));
     if(b) b.click();
@@ -360,7 +357,39 @@ function isPurchaseAgreementAddendumLabel(label){
   return /purchase\s*agreement\s*addendum\b/.test(L) || /addendum\s*to\s*purchase\s*agreement\b/.test(L);
 }
 function labelType(label){ const L=(label||'').toLowerCase(); if(/prohibited\s+sales\s+addendum/.test(L)) return 'prohibited'; if(/\bas[\s-]*is\b.*addendum/.test(L)||/as-?is\s+addendum\s+to\s+psa/.test(L)) return 'asis'; if(isPurchaseAgreementAddendumLabel(label)) return 'paa'; if(/\baddendum\b/.test(L)) return 'generic'; if(/\breview\s+purchase\s+agreement\b|\bfreddie\s+mac\s+occupied\s+psa\b|\bpurchase\s+and\s+sale\s+agreement\b|\bauction\s+purchase\s+agreement\b|\bpsa\b/.test(L)) return 'psa'; return 'other'; }
-async function listDocumentTiles(page){ return await safe(()=>page.evaluate(()=>{ const tiles=[]; const roots=[document.querySelector('[data-elm-id="documents_content"]'), ...document.querySelectorAll('.adc__documents, [data-elm-id="documents"]')].filter(Boolean); if(!roots.length) return tiles; const scope=roots; const dedup=new Set(); const pushTile=(el)=>{ const label=(el.innerText||el.textContent||'').trim(); if(!label) return; const key=label.toLowerCase().replace(/\s+/g,' '); if(dedup.has(key)) return; dedup.add(key); const tgt=el.querySelector('a,button,[role="button"],[role="link"]')||el; const href=(tgt.getAttribute&&tgt.getAttribute('href'))||''; tiles.push({label,href}); }; const selectors=['[data-elm-id="document_section_doc_doc"]','.adc__documents a, .adc__documents [role="link"], .adc__documents [role="button"]','a[href$=".pdf"]','a:has(img[src*="pdf"])','li a[href], .document, .document-row, .document-tile']; for (const root of scope){ for (const sel of selectors){ root.querySelectorAll(sel).forEach(pushTile); } } return tiles; })).catch(()=>[]); }
+async function listDocumentTiles(page) {
+  return await safe(() => page.evaluate(() => {
+    const tiles = [];
+    const roots = [document.querySelector('[data-elm-id="documents_content"]'), ...document.querySelectorAll('.adc__documents, [data-elm-id="documents"]')].filter(Boolean);
+    const scopes = roots.length ? roots : [document];
+    const selectors = ['[data-elm-id="document_section_doc_doc"]', '.adc__documents a, .adc__documents [role="link"], .adc__documents [role="button"]', 'a[href$=".pdf"]', 'a:has(img[src*="pdf"])', 'li a[href], .document, .document-row, .document-tile'];
+    const seenNodes = new Set();
+    const labelCounts = new Map();
+    const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
+
+    const pushTile = (node) => {
+      if (!node || seenNodes.has(node)) return;
+      seenNodes.add(node);
+      const label = norm(node.innerText || node.textContent || '');
+      if (!label) return;
+      const target = node.querySelector('a,button,[role="button"],[role="link"]') || node;
+      let href = '';
+      try { href = target.getAttribute('href') || target.href || ''; } catch {}
+      const labelKey = label.toLowerCase();
+      const ordinal = labelCounts.get(labelKey) || 0;
+      labelCounts.set(labelKey, ordinal + 1);
+      const dataId = (node.getAttribute && node.getAttribute('data-elm-id')) || (target.getAttribute && target.getAttribute('data-elm-id')) || '';
+      tiles.push({ label, href, ordinal, dataId });
+    };
+
+    for (const scope of scopes) {
+      for (const sel of selectors) {
+        scope.querySelectorAll(sel).forEach(pushTile);
+      }
+    }
+    return tiles;
+  })).catch(() => []);
+}
 async function getClickableTileData(page){ return await page.evaluate(()=>{ const tiles=[]; document.querySelectorAll('[data-elm-id*="doc"]').forEach((el,index)=>{ tiles.push({index, selector:`[data-elm-id="${el.getAttribute('data-elm-id')}"]`, text:(el.textContent||'').trim()}); }); return tiles; }); }
 async function clickTileByData(page,tileData){ await page.evaluate((data)=>{ const el=document.querySelector(data.selector); if(el) el.click(); }, tileData); }
 async function clickTileAndSniffPdf(page,tile){
@@ -370,16 +399,59 @@ async function clickTileAndSniffPdf(page,tile){
   page.on('response',(res)=>{ try{ const url=res.url()||''; const headers=res.headers?res.headers():{}; const ct=(headers['content-type']||'').toLowerCase(); if(ct.includes('application/pdf')||/\.pdf(\?|$)/i.test(url)||/imgix\.net\/resi\/globalDocuments\/.+\.pdf/i.test(url)) (page.__pdf_hits ||= []).push(url); }catch{} });
   await setupCDPNetworkMonitoring(page).catch(()=>{});
   const popupWait=page.waitForEvent('popup',{timeout:7000}).then(async pop=>{ let u=''; try{ await pop.waitForLoadState('domcontentloaded',{timeout:7000}).catch(()=>{}); u = pop.url()||''; }catch{} try{ await pop.close().catch(()=>{}); }catch{} return u; }).catch(()=> '');
-  await safe(()=>page.evaluate((label)=>{ const txt=(n)=>(n.innerText||n.textContent||'').trim(); const root=document.querySelector('[data-elm-id="documents_content"]')||document.querySelector('.adc__documents')||document.querySelector('[data-elm-id="documents"]'); if(!root) return; const els=[...root.querySelectorAll('a,button,[role="button"],[role="link"]')]; let el=els.find(e=>txt(e)===label); if(!el){ el=els.find(e=>/purchase\s*agreement\s*addendum/i.test(txt(e))); } if(el){ try{ el.removeAttribute&&el.removeAttribute('target'); }catch{} el.scrollIntoView({block:'center'}); el.click(); el.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); } }, tile.label)).catch(async ()=>{ const td=await getClickableTileData(page).catch(()=>[]); const one=(td||[]).find(t=>(t.text||'').trim()===tile.label.trim()); if(one) await clickTileByData(page, one); });
+  await safe(()=>page.evaluate((info)=>{
+    const normalize=(s)=>(s||'').replace(/\s+/g,' ').trim();
+    const root=document.querySelector('[data-elm-id="documents_content"]')||document.querySelector('.adc__documents')||document.querySelector('[data-elm-id="documents"]');
+    if(!root) return;
+    const els=[...root.querySelectorAll('a,button,[role="button"],[role="link"]')];
+    const matches=els.filter(e=>normalize(e.innerText||e.textContent||'')===normalize(info.label));
+    let el=matches[info.ordinal]||matches[0]||null;
+    if(!el && info.dataId){
+      el=els.find(e=>(e.getAttribute&&e.getAttribute('data-elm-id'))===info.dataId);
+    }
+    if(!el){
+      const fallback=els.filter(e=>/purchase\s*agreement\s*addendum/i.test(normalize(e.innerText||e.textContent||'')));
+      el=fallback[info.ordinal]||fallback[0]||null;
+    }
+    if(!el) return;
+    try{ el.removeAttribute&&el.removeAttribute('target'); }catch{}
+    el.scrollIntoView({block:'center'});
+    el.click();
+    el.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));
+  }, { label: tile.label, ordinal: tile.ordinal||0, dataId: tile.dataId||'' })).catch(async ()=>{
+    const td=await getClickableTileData(page).catch(()=>[]);
+    const normalize=(s)=>(s||'').replace(/\s+/g,' ').trim();
+    const matches=(td||[]).filter(t=>normalize(t.text||'')===normalize(tile.label||''));
+    const pick=matches[tile.ordinal||0]||matches[0];
+    if(pick) await clickTileByData(page, pick);
+  });
   await sleep(900);
-  const now=await safe(()=>page.url()).catch(()=> ''); if(isPdfUrl(now)) return now;
-  const pu=await popupWait; if(isPdfUrl(pu)) return pu;
+  const now=await safe(()=>page.url()).catch(()=> '');
+  if(isPdfUrl(now)) return now;
+  const pu=await popupWait;
+  if(isPdfUrl(pu)) return pu;
   if((page.__pdf_hits||[])[0] && isPdfUrl((page.__pdf_hits||[])[0])) return (page.__pdf_hits||[])[0];
   if((page.__cdp_pdf_urls||[])[0] && isPdfUrl((page.__cdp_pdf_urls||[])[0])) return (page.__cdp_pdf_urls||[])[0];
-  for(let i=0;i<6;i++){ const perf=await safe(()=>page.evaluate(()=>{ try{ const es=performance.getEntriesByType('resource')||[]; const m=es.find(e=>/imgix\.net\/resi\/globalDocuments\/.+\.pdf/i.test(e.name||'')); return m?m.name:''; }catch{ return ''; } })).catch(()=> ''); if(isPdfUrl(perf)) return perf; await sleep(250); }
-  const cap=await readCapture(page); if(isPdfUrl(cap.openUrl)) return toAbs(cap.openUrl, now||'https://www.auction.com'); if(isPdfUrl(cap.anchorHref)) return toAbs(cap.anchorHref, now||'https://www.auction.com'); if((cap.blobUrls||[])[0] && isPdfUrl((cap.blobUrls||[])[0])) return cap.blobUrls[0];
+  for(let i=0;i<6;i++){
+    const perf=await safe(()=>page.evaluate(()=>{
+      try{
+        const es=performance.getEntriesByType('resource')||[];
+        const m=es.find(e=>/imgix\.net\/resi\/globalDocuments\/.+\.pdf/i.test(e.name||''));
+        return m?m.name:'';
+      }catch{
+        return '';
+      }
+    })).catch(()=> '');
+    if(isPdfUrl(perf)) return perf;
+    await sleep(250);
+  }
+  const cap=await readCapture(page);
+  if(isPdfUrl(cap.openUrl)) return toAbs(cap.openUrl, now||'https://www.auction.com');
+  if(isPdfUrl(cap.anchorHref)) return toAbs(cap.anchorHref, now||'https://www.auction.com');
+  if((cap.blobUrls||[])[0] && isPdfUrl((cap.blobUrls||[])[0])) return cap.blobUrls[0];
   return '';
 }
+
 
 // --- Results page helpers (ZIP flow) ---
 async function collectDetailLinksFromHTML(page) {
@@ -610,93 +682,6 @@ async function goToZipResults(context, location, debug){
     throw new Error(`Failed to load ZIP results: ${e.message}`);
   }
 }
-// Navigate to the countrywide Bank-Owned + Newly-Foreclosed results page
-async function goToCountrywideResults(context, countryUrl, debug){
-  if (!await isContextValid(context)) {
-    debug?.log('country_context_invalid', {});
-    throw new Error('Browser context is no longer valid');
-  }
-
-  let root = null;
-  try {
-    root = await createNewPage(context, 3, debug);
-    await setTimeouts(root);
-    await lighten(root);
-    debug?.log('country_nav_start', { url: countryUrl });
-    await safeNavigate(root, countryUrl);
-    await waitSettle(root);
-    await dismiss(root);
-
-    // Ensure filters are applied (defensive; URL should already include)
-    await ensureFilterOn(root, '^\s*Bank\s*Owned\s*$|Bank\s*Owned');
-    await ensureFilterOn(root, '^\s*Newly\s*Foreclosed\s*$|Newly\s*Foreclosed');
-    await waitSettle(root);
-
-    // Quick sanity on URL
-    const currentUrl = await root.url();
-    const ok = /\/residential\//i.test(currentUrl) && currentUrl.includes('y_global') && currentUrl.includes('bank-owned,newly-foreclosed_at');
-    debug?.log('country_nav_done', { ok, currentUrl });
-    return { root, ok };
-  } catch (e) {
-    debug?.log('country_nav_error', { error: String(e) });
-    await safeClosePage(root);
-    throw e;
-  }
-}
-// Aggregate property detail links by iterating through states
-async function collectStateDetailLinks(context, states, maxLinks, debug){
-  const all = new Set();
-  let stateIdx = 0;
-  for (const abbr of states) {
-    stateIdx += 1;
-    debug?.log('state_collect_start', { state: abbr, index: stateIdx });
-    const { root } = await goToZipResults(context, abbr, debug);
-    let links = [];
-    try {
-      await waitSettle(root);
-      let triesWithoutGrowth = 0;
-      for (let iter=0; iter<50; iter++) {
-        for (let i=0;i<6;i++){
-          await safe(()=>root.evaluate(()=>{ window.scrollBy(0, Math.max(600, (document.body?.scrollHeight||200)/4)); })).catch(()=>{});
-          await sleep(250);
-        }
-        await waitSettle(root);
-
-        try {
-          const clicked = await safe(()=>root.evaluate(()=>{
-            const txt=n=>(n.innerText||n.textContent||'').trim();
-            const btns=[...document.querySelectorAll('button,[role="button"],a')];
-            const target=btns.find(b=>/load\s*more|show\s*more|view\s*more|next|more\s*results/i.test(txt(b)));
-            if(target){ target.scrollIntoView({block:'center'}); target.click(); return true; }
-            return false;
-          })).catch(()=>false);
-          if (clicked) { await waitSettle(root); await sleep(600); }
-        } catch {}
-
-        const newLinks = await collectDetailLinksFromHTML(root);
-        const before = links.length;
-        links = [...new Set([...links, ...newLinks])];
-        const after = links.length;
-        // Add to grand set and only log when we have growth
-        for (const u of links) all.add(u);
-        if (after > before) {
-          try { console.log(`[collect] ${abbr}: +${after - before} (state=${after}) total=${all.size}`); } catch {}
-        }
-        if (all.size >= maxLinks) break;
-        if (after === before) {
-          triesWithoutGrowth += 1;
-          if (triesWithoutGrowth >= 3) break;
-        } else {
-          triesWithoutGrowth = 0;
-        }
-      }
-      // Per-state summary line
-      try { console.log(`[collect] state ${abbr} complete: ${links.length} links; total=${all.size}`); } catch {}
-    } finally { await safeClosePage(root); }
-    if (all.size >= maxLinks) break;
-  }
-  return [...all];
-}
 async function verifyStateOnPage(page, abbr){ try{ const url=await page.url(); const ab=String(abbr||'').toLowerCase(); return /\/residential\//i.test(url) && new RegExp(`/residential/${ab}/`, 'i').test(url); }catch{ return false; } }
 async function goToStateResults(context, abbr){
   const ab = String(abbr||'').toUpperCase();
@@ -832,7 +817,6 @@ async function createNewPage(context, retries = 3, debug) {
 (async () => {
   const cfg = await loadConfig();
   const debug = makeDebug(cfg.debug);
-  // (countrywide output name set only when used later)
   
   const browser = await chromium.launch({
     headless: cfg.headless,
@@ -856,24 +840,6 @@ async function createNewPage(context, retries = 3, debug) {
   const out = [];
 
 
-
-  // Countrywide collection flow (state-by-state to avoid global cap)
-  if (!detailUrls.length && cfg.countrywide) {
-    // Set a new timestamped output name for country sweeps
-    try {
-      const pad=(n)=>String(n).padStart(2,'0');
-      const d=new Date();
-      const dateStr=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-      cfg.output = `country-report-${dateStr}.json`;
-      debug?.log('country_output_set', { output: cfg.output });
-    } catch {}
-    const states = (cfg.countryStates && cfg.countryStates.length) ? cfg.countryStates : Object.keys(STATE_CODES);
-    try { console.log(`[collect] starting state sweep: ${states.length} states, target=${cfg.maxProperties}`); } catch {}
-    const links = await collectStateDetailLinks(context, states, cfg.maxProperties, debug);
-    availableCount = links.length;
-    detailUrls = links.slice(0, cfg.maxProperties);
-    try { console.log(`[collect] state sweep complete: collected=${availableCount}, planned=${detailUrls.length}`); } catch {}
-  }
 
   if (!detailUrls.length && (cfg.zip || cfg.state)) {
     const searchLocation = cfg.state || cfg.zip;
@@ -928,16 +894,8 @@ async function createNewPage(context, retries = 3, debug) {
 
   if (!detailUrls.length) throw new Error('detailUrls is empty - provide ZIP, state, or detailUrls.');
 
-  if (!detailUrls.length) throw new Error('detailUrls is empty — provide ZIP or detailUrls.');
+  if (!detailUrls.length) throw new Error('detailUrls is empty ??? provide ZIP or detailUrls.');
 
-  // Progress counters
-  const planned = Math.min(detailUrls.length, cfg.maxProperties);
-  let processed = 0;
-  let okCount = 0;
-  let addendumCount = 0;
-  let cwcotCount = 0;
-  const reportProgress = () => { try { console.log(`[progress] scraped ${processed}/${planned} ok=${okCount} addendum=${addendumCount} cwcot=${cwcotCount}`); } catch {} };
-  try { console.log(`[progress] starting scrape of ${planned} properties (available=${availableCount}, max=${cfg.maxProperties})`); } catch {}
 
   for (const url of detailUrls.slice(0, cfg.maxProperties)) {
     let p = await context.newPage();
@@ -949,24 +907,32 @@ async function createNewPage(context, retries = 3, debug) {
       const basics = await getBasics(p);
       // Skip pre-opening documents here to avoid extra waits; detection handles it.
       const detectPromise = getBestAddendumAndDetect(p, url, debug);
-      const timeoutPromise = (async ()=>{ await sleep(cfg.detectTimeoutMs); return { selection_reason:'timeout_no_paa', url:'', isCWCOT:false, cwcot_hits:[], cwcot_rev:'', detection_source:'', filename:'', pdf_text_sample:'', label:'' }; })();
-      const picked = await Promise.race([ detectPromise, timeoutPromise ]);
-      // Swallow late rejections if page closes while detect is still running
+      const detectTimeout = Math.max(4000, Number(cfg.detectTimeoutMs) || 5000);
+      const defaultDetectResult = { selection_reason:'timeout_no_paa', url:'', isCWCOT:false, cwcot_hits:[], cwcot_rev:'', detection_source:'', filename:'', pdf_text_sample:'', label:'', tiles_seen:undefined, tiles_labels:undefined };
+      let picked = await Promise.race([
+        detectPromise,
+        sleep(detectTimeout).then(()=>null)
+      ]);
+      if (picked === null) {
+        const late = await Promise.race([
+          detectPromise.catch(()=>null),
+          sleep(Math.max(5000, detectTimeout)).then(()=>null)
+        ]);
+        if (late) {
+          if (!late.selection_reason) late.selection_reason = 'paa_slow';
+          picked = late;
+        } else {
+          picked = defaultDetectResult;
+        }
+      }
       detectPromise.catch(()=>{});
       const doc_after = cfg.debug ? await docDebugSnapshot(p, 25) : [];
       const isCWCOT = picked && picked.isCWCOT ? true : false;
       const row = { scraped_at:new Date().toISOString(), url, addendum_url:picked.url||'', isCWCOT, cwcot_hits:picked.cwcot_hits||[], cwcot_rev:picked.cwcot_rev||'', detection_source:picked.detection_source||'', filename:picked.filename||'', pdf_text_sample:picked.pdf_text_sample||'', selection_reason:picked.selection_reason||'', clicked_label:picked.label||'', tiles_seen:picked.tiles_seen??undefined, tiles_labels:picked.tiles_labels??undefined, address:basics.address, cityStateZip:basics.cityStateZip, price:basics.price, saleWindow:basics.saleWindow, beds:basics.beds, baths:basics.baths, sqft:basics.sqft, propertyType:basics.propertyType, lotSizeAcres: basics.lotSizeAcres, yearBuilt: basics.yearBuilt, interiorAccess: basics.interiorAccess, cashOnly: basics.cashOnly, brokerCoop: basics.brokerCoop, occupiedStatus: basics.occupiedStatus, titleAndLiens: basics.titleAndLiens, estResaleValue: basics.estResaleValue, cookie_healthy:health.healthy, cookie_hint: health.healthy ? '' : (health.showsLogin ? 'Login text visible; cookies likely stale' : 'Docs keywords not visible'), error:'' };
       if (cfg.debug) { row.doc_debug_before = doc_before; row.doc_debug_after = doc_after; row._debug = debug.__history || []; }
       out.push(row);
-      processed += 1;
-      okCount += 1;
-      addendumCount += (row.addendum_url ? 1 : 0);
-      cwcotCount += (row.isCWCOT ? 1 : 0);
-      reportProgress();
     } catch (e) {
       out.push({ scraped_at:new Date().toISOString(), url, addendum_url:'', isCWCOT:false, cwcot_hits:[], cwcot_rev:'', detection_source:'', filename:'', pdf_text_sample:'', selection_reason:'', clicked_label:'', address:'', cityStateZip:'', price:'', saleWindow:'', beds:'', baths:'', sqft:'', propertyType:'', cookie_healthy:false, cookie_hint:'', error:String(e) });
-      processed += 1;
-      reportProgress();
     } finally { await safeClosePage(p); await closeExtraPages(context, []); }
   }
 
@@ -1059,3 +1025,12 @@ async function getAddendumUrl(page, baseUrl){
   const cap=await readCapture(page); if(cap.openUrl) return toAbs(cap.openUrl, baseUrl); if(cap.anchorHref) return toAbs(cap.anchorHref, baseUrl); if((cap.blobUrls||[])[0]) return cap.blobUrls[0];
   return '';
 }
+
+
+
+
+
+
+
+
+

@@ -5,6 +5,14 @@ import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import { Map } from 'react-map-gl';
 import { useDebounce } from './hooks/useDebounce.js';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+
+function apiFetch(path, options) {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const url = API_BASE_URL ? `${API_BASE_URL}${normalizedPath}` : normalizedPath;
+  return fetch(url, options);
+}
+
 const MAP_STYLES = {
   Dark: 'mapbox://styles/mapbox/dark-v11',
   Light: 'mapbox://styles/mapbox/light-v11',
@@ -115,9 +123,9 @@ export default function App() {
     async function bootstrap() {
       try {
         const [configRes, statsRes, geoRes] = await Promise.all([
-          fetch('/api/config'),
-          fetch('/api/stats'),
-          fetch('/api/geocode/summary'),
+          apiFetch('/api/config'),
+          apiFetch('/api/stats'),
+          apiFetch('/api/geocode/summary'),
         ]);
         if (!configRes.ok) throw new Error('Failed to load config');
         if (!statsRes.ok) throw new Error('Failed to load stats');
@@ -144,7 +152,7 @@ export default function App() {
 
   const refreshStats = useCallback(async () => {
     try {
-      const res = await fetch('/api/stats');
+      const res = await apiFetch('/api/stats');
       if (res.ok) {
         const json = await res.json();
         setStats(json);
@@ -156,7 +164,7 @@ export default function App() {
 
   const refreshGeocodeSummary = useCallback(async () => {
     try {
-      const res = await fetch('/api/geocode/summary');
+      const res = await apiFetch('/api/geocode/summary');
       if (res.ok) {
         const json = await res.json();
         setGeocodeSummary(json);
@@ -176,7 +184,7 @@ export default function App() {
       if (filters.onlyCwcot) params.set('onlyCwcot', '1');
       if (filters.hasAddendum) params.set('hasAddendum', '1');
       if (debouncedSearch) params.set('search', debouncedSearch);
-      const res = await fetch(`/api/properties?${params.toString()}`);
+      const res = await apiFetch(`/api/properties?${params.toString()}`);
       if (!res.ok) throw new Error(`Failed to load properties (${res.status})`);
       const json = await res.json();
       setProperties(Array.isArray(json.items) ? json.items : []);
@@ -315,7 +323,7 @@ export default function App() {
   const handleGeocode = async () => {
     setGeocodeRunning(true);
     try {
-      const res = await fetch('/api/geocode/missing', { method: 'POST' });
+      const res = await apiFetch('/api/geocode/missing', { method: 'POST' });
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text || 'Geocode failed');
@@ -332,7 +340,7 @@ export default function App() {
 
   const handleClearGeocode = async () => {
     try {
-      await fetch('/api/geocode/cache', { method: 'DELETE' });
+      await apiFetch('/api/geocode/cache', { method: 'DELETE' });
       await refreshGeocodeSummary();
     } catch (err) {
       setError(err.message || 'Failed to clear geocode cache');

@@ -58,13 +58,13 @@ const stmtInsertProperty = db.prepare(`
     price, price_num, sale_window, beds, beds_num, baths, baths_num, sqft, sqft_num,
     lot_size_acres, property_type, year_built, est_resale_value, has_addendum,
     addendum_url, is_cwcot, scraped_at, first_seen, last_seen, last_changed,
-    status, inactive_at, data_json
+    status, inactive_at, reactivated_at, data_json, last_run_id
   ) VALUES (
     @url, @hash, @address, @address_clean, @city_state_zip, @county, @lat, @lng,
     @price, @price_num, @sale_window, @beds, @beds_num, @baths, @baths_num, @sqft, @sqft_num,
     @lot_size_acres, @property_type, @year_built, @est_resale_value, @has_addendum,
     @addendum_url, @is_cwcot, @scraped_at, @first_seen, @last_seen, @last_changed,
-    @status, @inactive_at, @data_json
+    @status, @inactive_at, @reactivated_at, @data_json, @last_run_id
   );
 `);
 
@@ -98,7 +98,9 @@ const stmtUpdateProperty = db.prepare(`
     last_changed=@last_changed,
     status=@status,
     inactive_at=@inactive_at,
-    data_json=@data_json
+    reactivated_at=@reactivated_at,
+    data_json=@data_json,
+    last_run_id=@last_run_id
   WHERE id=@id;
 `);
 
@@ -110,8 +112,37 @@ const stmtInsertChange = db.prepare(`
 const stmtSelectActive = db.prepare("SELECT id, url FROM properties WHERE status = 'active'");
 const stmtDeactivate = db.prepare(`
   UPDATE properties
-  SET status='inactive', inactive_at=@inactive_at
+  SET status='inactive', inactive_at=@inactive_at, last_run_id=@last_run_id
   WHERE id=@id;
+`);
+
+const stmtInsertRun = db.prepare(`
+  INSERT INTO ingest_runs (started_at, status, input_path)
+  VALUES (@started_at, @status, @input_path);
+`);
+
+const stmtFinalizeRun = db.prepare(`
+  UPDATE ingest_runs SET
+    finished_at=@finished_at,
+    status=@status,
+    record_count=@record_count,
+    created_count=@created_count,
+    updated_count=@updated_count,
+    unchanged_count=@unchanged_count,
+    changed_count=@changed_count,
+    reactivated_count=@reactivated_count,
+    deactivated_count=@deactivated_count,
+    error=NULL
+  WHERE id=@id;
+`);
+
+const stmtFailRun = db.prepare(`
+  UPDATE ingest_runs SET finished_at=@finished_at, status='failed', error=@error WHERE id=@id;
+`);
+
+const stmtInsertEvent = db.prepare(`
+  INSERT INTO property_ingest_events (run_id, property_id, event_type, detail, occurred_at)
+  VALUES (@run_id, @property_id, @event_type, @detail, @occurred_at);
 `);
 
 
@@ -184,122 +215,215 @@ async function applyCoordinates(payload) {
 }
 
 async function main() {
-  const now = nowIso();
-  const normalized = [];
-  for (const item of items) {
-    const norm = normalizeItem(item);
-    await applyCoordinates(norm);
-    normalized.push(norm);
-  }
+  let runId = null;
+  const runStartedAt = nowIso();
+  try {
+    const runResult = stmtInsertRun.run({
+      started_at: runStartedAt,
+      status: 'running',
+      input_path: reportPath,
+    });
+    runId = Number(runResult.lastInsertRowid);
 
-  const seenUrls = new Set();
-  let created = 0;
-let updated = 0;
-let changed = 0;
-let deactivatedCount = 0;
+    const normalized = [];
+    for (const item of items) {
+      const norm = normalizeItem(item);
+      await applyCoordinates(norm);
+      normalized.push(norm);
+    }
 
-  const trackedFields = [
-    'price',
-    'price_num',
-    'sale_window',
-    'beds',
-    'beds_num',
-    'baths',
-    'baths_num',
-    'sqft',
-    'sqft_num',
-    'lat',
-    'lng',
-    'is_cwcot',
-    'has_addendum',
-    'address_clean',
-    'lot_size_acres',
-    'est_resale_value',
-  ];
+    const trackedFields = [
+      'hash',
+      'address',
+      'address_clean',
+      'city_state_zip',
+      'price',
+      'price_num',
+      'sale_window',
+      'beds',
+      'beds_num',
+      'baths',
+      'baths_num',
+      'sqft',
+      'sqft_num',
+      'lat',
+      'lng',
+      'is_cwcot',
+      'has_addendum',
+      'lot_size_acres',
+      'est_resale_value',
+      'property_type',
+      'year_built',
+      'addendum_url',
+      'scraped_at',
+    ];
 
-  const runUpsert = db.transaction(records => {
-    for (const payload of records) {
-      if (!payload.url) continue;
-      const existing = stmtSelectByUrl.get(payload.url);
-      seenUrls.add(payload.url);
+    const seenUrls = new Set();
+    let created = 0;
+    let updated = 0;
+    let unchanged = 0;
+    let changed = 0;
+    let reactivated = 0;
+    let deactivatedCount = 0;
 
-      if (!existing) {
-        const insertPayload = {
+    const occurredAt = nowIso();
+
+    const runUpsert = db.transaction(({ records, runId: currentRunId, occurredAt: ts }) => {
+      for (const payload of records) {
+        const url = payload.url;
+        if (!url) continue;
+        if (seenUrls.has(url)) continue;
+
+        const existing = stmtSelectByUrl.get(url);
+        seenUrls.add(url);
+
+        if (!existing) {
+          const insertPayload = {
+            ...payload,
+            first_seen: ts,
+            last_seen: ts,
+            last_changed: ts,
+            status: 'active',
+            inactive_at: null,
+            reactivated_at: null,
+            last_run_id: currentRunId,
+          };
+          const result = stmtInsertProperty.run(insertPayload);
+          const propertyId = Number(result.lastInsertRowid);
+          stmtInsertEvent.run({
+            run_id: currentRunId,
+            property_id: propertyId,
+            event_type: 'created',
+            detail: null,
+            occurred_at: ts,
+          });
+          created += 1;
+          continue;
+        }
+
+        const wasInactive = existing.status !== 'active';
+        const comparisons = { ...existing };
+        const changes = diffFields(comparisons, payload, trackedFields);
+        const reactivatedAt = wasInactive ? ts : existing.reactivated_at;
+
+        const updatePayload = {
           ...payload,
-          first_seen: now,
-          last_seen: now,
-          last_changed: now,
+          id: existing.id,
+          last_seen: ts,
+          last_changed: changes.length ? ts : existing.last_changed,
           status: 'active',
           inactive_at: null,
+          reactivated_at: reactivatedAt,
+          last_run_id: currentRunId,
         };
-        stmtInsertProperty.run(insertPayload);
-        created += 1;
-        continue;
+        stmtUpdateProperty.run(updatePayload);
+
+        const eventDetail = {};
+        let eventType = 'seen';
+
+        if (wasInactive) {
+          reactivated += 1;
+          eventType = 'reactivated';
+          eventDetail.reactivated = true;
+        }
+
+        if (changes.length) {
+          changed += 1;
+          eventDetail.changedFields = changes.map(change => change.field);
+          eventType = wasInactive ? 'reactivated_changed' : 'changed';
+          for (const change of changes) {
+            stmtInsertChange.run({
+              property_id: existing.id,
+              field: change.field,
+              old_value: change.oldValue != null ? String(change.oldValue) : null,
+              new_value: change.newValue != null ? String(change.newValue) : null,
+              changed_at: ts,
+            });
+          }
+        } else if (!wasInactive) {
+          unchanged += 1;
+        }
+
+        const detail = Object.keys(eventDetail).length ? JSON.stringify(eventDetail) : null;
+        stmtInsertEvent.run({
+          run_id: currentRunId,
+          property_id: existing.id,
+          event_type: eventType,
+          detail,
+          occurred_at: ts,
+        });
+
+        updated += 1;
       }
+    });
 
-      const comparisons = { ...existing };
-      const changes = diffFields(comparisons, payload, trackedFields);
-      const status = 'active';
-      const updatePayload = {
-        ...payload,
-        id: existing.id,
-        last_seen: now,
-        last_changed: changes.length ? now : existing.last_changed,
-        status,
-        inactive_at: null,
-      };
-      stmtUpdateProperty.run(updatePayload);
+    runUpsert({ records: normalized, runId, occurredAt });
 
-      if (changes.length) {
-        changed += 1;
-        for (const change of changes) {
-          stmtInsertChange.run({
-            property_id: existing.id,
-            field: change.field,
-            old_value: change.oldValue != null ? String(change.oldValue) : null,
-            new_value: change.newValue != null ? String(change.newValue) : null,
-            changed_at: now,
+    const deactivate = db.transaction(({ runId: currentRunId, occurredAt: ts }) => {
+      const active = stmtSelectActive.all();
+      for (const row of active) {
+        if (!seenUrls.has(row.url)) {
+          stmtDeactivate.run({ id: row.id, inactive_at: ts, last_run_id: currentRunId });
+          stmtInsertEvent.run({
+            run_id: currentRunId,
+            property_id: row.id,
+            event_type: 'deactivated',
+            detail: JSON.stringify({ reason: 'missing_in_ingest' }),
+            occurred_at: ts,
           });
+          deactivatedCount += 1;
         }
       }
-      updated += 1;
+    });
+
+    deactivate({ runId, occurredAt });
+
+    const finishedAt = nowIso();
+    stmtFinalizeRun.run({
+      id: runId,
+      finished_at: finishedAt,
+      status: 'completed',
+      record_count: normalized.length,
+      created_count: created,
+      updated_count: updated,
+      unchanged_count: unchanged,
+      changed_count: changed,
+      reactivated_count: reactivated,
+      deactivated_count: deactivatedCount,
+    });
+
+    console.log(
+      JSON.stringify(
+        {
+          runId,
+          processed: normalized.length,
+          created,
+          updated,
+          unchanged,
+          changed,
+          reactivated,
+          deactivated: deactivatedCount,
+        },
+        null,
+        2,
+      ),
+    );
+  } catch (err) {
+    const finishedAt = nowIso();
+    if (runId != null) {
+      stmtFailRun.run({
+        id: runId,
+        finished_at: finishedAt,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
-  });
-
-  runUpsert(normalized);
-
-  // Mark properties not seen in this run as inactive
-  const deactivate = db.transaction(() => {
-    const active = stmtSelectActive.all();
-    for (const row of active) {
-      if (!seenUrls.has(row.url)) {
-        stmtDeactivate.run({ id: row.id, inactive_at: now });
-        deactivatedCount += 1;
-      }
-    }
-  });
-
-  deactivate();
-
-  closeDb();
-
-  console.log(
-    JSON.stringify(
-      {
-        processed: normalized.length,
-        created,
-        updated,
-        changed,
-        deactivated: deactivatedCount,
-      },
-      null,
-      2,
-    ),
-  );
+    throw err;
+  } finally {
+    closeDb();
+  }
 }
 
 main().catch(err => {
   console.error('Ingest failed:', err);
-  closeDb();
   process.exit(1);
 });

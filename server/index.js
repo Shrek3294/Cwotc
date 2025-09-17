@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 
 import { getDb } from './db.js';
-import { SERVER_PORT, MAPBOX_TOKEN } from './config.js';
+import { SERVER_PORT, SERVER_HOST, MAPBOX_TOKEN } from './config.js';
 import { geocodeMissingProperties, getGeocodeStats } from './geocode.js';
 
 const app = express();
@@ -51,6 +51,8 @@ function formatProperty(row, { includeRaw = false } = {}) {
     lastChanged: row.last_changed,
     status: row.status,
     inactiveAt: row.inactive_at,
+    reactivatedAt: row.reactivated_at,
+    lastRunId: row.last_run_id,
     changeCount: row.change_count ?? 0,
   };
   if (includeRaw) {
@@ -221,6 +223,14 @@ app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-app.listen(SERVER_PORT, () => {
-  console.log(`Server listening on http://localhost:${SERVER_PORT}`);
+const server = app.listen(SERVER_PORT, SERVER_HOST, () => {
+  console.log(`Server listening on http://${SERVER_HOST === '0.0.0.0' ? 'localhost' : SERVER_HOST}:${SERVER_PORT}`);
+});
+
+server.on('error', (err) => {
+  if (err?.code === 'EACCES') {
+    console.error(`Failed to bind to port ${SERVER_PORT}. Try setting SERVER_PORT to a port >= 1024 or run with elevated privileges.`);
+  } else if (err) {
+    console.error('Server failed to start:', err);
+  }
 });

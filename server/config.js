@@ -13,6 +13,7 @@ if (!fs.existsSync(dataDir)) {
 export const DATABASE_PATH = defaultDbPath;
 export const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN || '';
 export const SERVER_PORT = Number(process.env.SERVER_PORT || process.env.PORT || 4000);
-export const APP_URL = process.env.APP_URL || 'http://localhost:4000';
+export const SERVER_HOST = process.env.SERVER_HOST || '0.0.0.0';
+export const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 export const GEOCODE_BBOX = process.env.GEOCODE_BBOX || '-79.76,40.49,-71.85,45.01';
 export const GEOCODE_COUNTRY = process.env.GEOCODE_COUNTRY || 'US';
